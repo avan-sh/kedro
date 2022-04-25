@@ -31,6 +31,69 @@ Kedro defines Hook specifications for particular execution points where users ca
 * `before_dataset_saved`
 * `after_dataset_saved`
 
+### Order of Pipeline and Hook execution
+Order of Pipeline execution
+``` mermaid
+flowchart TB
+    direction RL
+    create_catalog(("Create\nCatalog"))
+    subgraph Pipe[Pipeline Run]
+    direction TB
+    ds_load(("Load\n Dataset"))
+    run_node(("Run node"))
+    ds_save(("Save\n Dataset"))
+    create_catalog-->ds_load
+    ds_load-->run_node-->ds_save
+    ds_save-->ds_load
+    end
+```
+
+
+Order of Pipeline execution
+``` mermaid
+flowchart TB
+    direction RL
+    subgraph CS ["CatalogSpecs()"]
+    create_catalog(("Create\nCatalog"))
+    a1["after_catalog_created"]
+    create_catalog-.->a1
+    end
+    subgraph Pipe[Run Pipeline]
+    p1[before_pipeline_run]
+    p2[after_pipeline_run]
+    p3[on_pipeline_error]
+    subgraph DatasetSpecs
+    direction TB
+    ds1[before_dataset_loaded]
+    ds_load(("Load\n dataset"))
+    ds2[after_dataset_loaded]
+    ds3[before_dataset_saved]
+    ds_save(("Save\n dataset"))
+    ds4[after_dataset_saved]
+    ds1-->ds_load-->ds2
+    ds3-->ds_save-->ds4
+    ds4 -.-> ds1
+    end
+    subgraph NodeSpecs
+    ns1[before_node_run]
+    ns(("run node"))
+    ns2[after_node_run]
+    ns3[on_node_error]
+    ns1-.->ns-.->ns2
+    ns-.->ns3
+    end
+    end
+    p1-.->DatasetSpecs
+    ds2-.->NodeSpecs
+    DatasetSpecs-.->p2
+    DatasetSpecs-.->p3
+    NodeSpecs-.->ds3
+    CS-.->Pipe
+```
+
+
+
+
 The naming convention for non-error Hooks is `<before/after>_<noun>_<past_participle>`, in which:
 
 * `<before/after>` and `<past_participle>` refers to when the Hook executed, e.g. `before <something> was run` or `after <something> was created`.
@@ -48,7 +111,6 @@ The naming convention for error hooks is `on_<noun>_error`, in which:
 Lastly, Kedro defines a small set of CLI hooks that inject additional behaviour around execution of a Kedro CLI command:
 
 * `before_command_run`
-* `after_command_run`
 
 This is what the [`kedro-telemetry`](https://github.com/kedro-org/kedro-plugins/tree/main/kedro-telemetry) plugin relies on under the hood in order to be able to collect CLI usage statistics.
 
